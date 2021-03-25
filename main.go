@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/tealeg/xlsx/v3"
 )
@@ -22,12 +25,12 @@ var fapiaoKindMap = map[string]string{
 }
 
 type fapiao struct {
-	kind         string    // 发票类型
-	code         string    //发票代码
-	serialNumber string    // 发票号码
-	amount       float64   // 金额
-	date         time.Time // 时间
-	checkcode    string    // 校验码
+	Kind         string  `json:"发票类型"` // 发票类型
+	Code         string  `json:"发票代码"` //发票代码
+	SerialNumber string  `json:"发票号码"` // 发票号码
+	Amount       float64 `json:"总额"`   // 金额
+	Date         string  `json:"时间"`   // 时间
+	Checkcode    string  `json:"校验码"`  // 校验码
 }
 
 func parse(input string) (*fapiao, error) {
@@ -45,28 +48,29 @@ func parse(input string) (*fapiao, error) {
 
 	// 获取发票类型
 	var ok bool
-	f.kind, ok = fapiaoKindMap[seq[1]]
+	f.Kind, ok = fapiaoKindMap[seq[1]]
 	if !ok {
 		return nil, fmt.Errorf("找不到%s对应的发票类型", seq[1])
 	}
 
 	// 发票代码
-	f.code = seq[2]
+	f.Code = seq[2]
 	// 发票号码
-	f.serialNumber = seq[3]
+	f.SerialNumber = seq[3]
 	// 发票金额
-	f.amount, err = strconv.ParseFloat(seq[4], 64)
+	f.Amount, err = strconv.ParseFloat(seq[4], 64)
 	if err != nil {
 		return nil, err
 	}
 	// 开票日期
-	timestamp, err := strconv.ParseInt(seq[5], 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	f.date = time.Unix(timestamp, 0)
+	// timestamp, err := strconv.ParseInt(seq[5], 10, 64)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// f.date = time.Unix(timestamp, 0)
+	f.Date = seq[5]
 	// 校验码
-	f.checkcode = seq[6]
+	f.Checkcode = seq[6]
 	return f, nil
 }
 
@@ -90,12 +94,12 @@ func export(name string, fapiaos ...*fapiao) error {
 	for _, fp := range fapiaos {
 		row := sh.AddRow()
 		row.SetHeight(12)
-		row.AddCell().SetString(fp.kind)
-		row.AddCell().SetString(fp.code)
-		row.AddCell().SetString(fp.serialNumber)
-		row.AddCell().SetFloat(fp.amount)
-		row.AddCell().SetDate(fp.date)
-		row.AddCell().SetString(fp.checkcode)
+		row.AddCell().SetString(fp.Kind)
+		row.AddCell().SetString(fp.Code)
+		row.AddCell().SetString(fp.SerialNumber)
+		row.AddCell().SetFloat(fp.Amount)
+		row.AddCell().SetString(fp.Date)
+		row.AddCell().SetString(fp.Checkcode)
 	}
 
 	return wb.Save(name)
@@ -133,6 +137,13 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		// 保存扫描后的发票
+		if buf, err := json.Marshal(fp); err != nil {
+			log.Println(err)
+		} else {
+			ioutil.WriteFile(filepath.Join("data", fp.Code), buf, os.FileMode(0644))
+		}
+
 		fapiaos = append(fapiaos, fp)
 	}
 

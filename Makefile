@@ -1,4 +1,4 @@
-.PHONY: all build build-32 clear
+.PHONY: all build build-32 clean
 
 all: build build-32
 
@@ -8,5 +8,5 @@ build:
 build-32:
 	GOOS=windows GOARCH=386 go build -o fapiao2excel32.exe
 
-clear:
+clean:
 	for name in $$(ls *.exe); do rm $$name; done
